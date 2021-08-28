@@ -1,5 +1,5 @@
 # django_mysql_comment
-auto add comment for mysql table
+auto add comment for mysql table and column
 
 ## How to use
 
