@@ -10,8 +10,20 @@ such as ```polls/management/commands/addcolumncommnets.py```
 then, run the command ```python manage.py addcolumncomments [appname]```
 
 and you will see the log in the console...
+```
+% python manage.py addcolumncomments polls
 
-## if bug here..
+-- model_comment_sql for children
+ALTER TABLE children
+MODIFY COLUMN password varchar(300) DEFAULT NULL COMMENT '密码'
+
+-- model_comment_sql for children
+ALTER TABLE children
+MODIFY COLUMN age int(11) NOT NULL COMMENT '年龄'
+......
+```
+
+## If any bug
 you can fix by yourself or commit your issue here, I will fix
 
 ## TODO
