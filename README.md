@@ -30,4 +30,3 @@ you can fix by yourself or commit your issue here, I will fix
 
 - how to use by ```pip install ...```
 - use more django skills in the script
-- for more django model field type and situations
