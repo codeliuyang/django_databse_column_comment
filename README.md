@@ -3,21 +3,21 @@ auto add comment for mysql table and column
 
 ## How to use
 
-put the file ```addcolumncomments.py``` into the directory of one django app
+place the file ```addcolumncomments.py``` into the directory(`management/commands`) of one django app
 
 such as ```polls/management/commands/addcolumncommnets.py```
 
-then, run the command ```python manage.py addcolumncomments [appname]```
+next, run the command ```python manage.py addcolumncomments [appname]```
 
-and you will see the log in the console...
+then, you will see the log in the console...
 ```
 % python manage.py addcolumncomments polls
 
--- model_comment_sql for children
+-- model_comment_sql for children.password
 ALTER TABLE children
 MODIFY COLUMN password varchar(300) DEFAULT NULL COMMENT '密码'
 
--- model_comment_sql for children
+-- model_comment_sql for children.age
 ALTER TABLE children
 MODIFY COLUMN age int(11) NOT NULL COMMENT '年龄'
 ......
