@@ -80,6 +80,6 @@ class Command(BaseCommand):
                     continue
                 original_ddl = ddl_column_dict.get(db_column)
                 model_comment_sql += original_ddl + " COMMENT '" + str(verbose_name) + "'"
-                print(model_comment_sql)
+                self.stdout.write(model_comment_sql)
                 cursor.execute(model_comment_sql)
                 connection.commit()
