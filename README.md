@@ -1,11 +1,13 @@
 # django_mysql_comment
 auto add comment for mysql table and column
 
+the ```verbose_name``` of the django model will be used as ```comment``` for mysql table
+
 ## How to use
 
 place the file ```addcolumncomments.py``` into the directory(`management/commands`) of one django app
 
-such as ```polls/management/commands/addcolumncommnets.py```
+such as ```polls/management/commands/addcolumncomments.py```
 
 next, run the command ```python manage.py addcolumncomments [appname]```
 
