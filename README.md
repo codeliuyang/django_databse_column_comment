@@ -5,6 +5,13 @@ the property ```verbose_name``` of the django model will be used as ```comment``
 
 ## How to use
 
+the model 
+```
+name = models.CharField(max_length=200, verbose_name="名称", blank=True, default=None)
+age = models.SmallIntegerField(verbose_name="年龄", blank=True, default=None)
+```
+
+then, install the package
 ```
 pip install addcomments
 ```
@@ -16,7 +23,7 @@ INSTALLED_APPS += [
 ]
 ```
 
-then, type command
+next, type command
 ```
 python manage.py addcolumncomments
 ```
