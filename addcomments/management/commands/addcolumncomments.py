@@ -1,5 +1,8 @@
-""" 给表和字段添加注释
-暂时仅使用MySQL
+""" ADD COMMENT TO TABLE COLUMNS
+only support MySQL for now
+
+command 'python manage.py addcolumncomments'
+
 ALTER TABLE supplier_seller COMMENT '联营商';
 
 ALTER TABLE children
@@ -21,11 +24,6 @@ class Command(BaseCommand):
             default=DEFAULT_DB_ALIAS,
             help='Nominates a database to synchronize. Defaults to the "default" database.',
         )
-        # 增加app_label
-        parser.add_argument(
-            'app_label', nargs='?',
-            help='App label of an application to synchronize the state.',
-        )
 
     def handle(self, *args, **options):
         # 1. 第一步连接数据库
@@ -34,17 +32,11 @@ class Command(BaseCommand):
         connection.prepare_database()
         cursor = connection.cursor()
         # 2. 找出所有自己定义的models
-        app_label = options['app_label']
-        if app_label is None:
-            print("please add param [app_label], such as [python manage.py addcolumncomments polls]")
-            return None
-        custom_models = apps.get_app_config(app_label).models
-        for model_name in custom_models:
-            modelobj = custom_models[model_name]
-            # 2.1 如果自己定义了table_name，那就以定义的为准，否则就是默认的Django模型Model的类名为 应用名+下划线+模型类名
+        models = apps.get_models()
+        custom_models = [model for model in models if 'django.contrib' not in str(model)]
+        for modelobj in custom_models:
+            # 2.1 获取table_name
             table_name = modelobj._meta.db_table
-            if not table_name:
-                table_name = app_label + '_' + model_name
             # 2.2 从数据库中获取 ddl of create table ...
             ddl_sql = "show create table " + table_name
             cursor.execute(ddl_sql)
@@ -69,12 +61,13 @@ class Command(BaseCommand):
                 db_column = field.db_column
                 if not db_column:
                     db_column = field.name
+                # 3.1 set verbose_name as comment
                 verbose_name = field.verbose_name
                 if not verbose_name or verbose_name == db_column.replace("_", " "):
                     continue
-                model_comment_sql = "-- model_comment_sql for " + table_name + "." + db_column + "\n"
-                model_comment_sql += "ALTER TABLE " + table_name + "\n"
-                model_comment_sql += "MODIFY COLUMN "
+                model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
+                model_comment_sql += "\t" + "ALTER TABLE " + table_name + "\n"
+                model_comment_sql += "\t" + "MODIFY COLUMN "
                 field_type = str(type(field))
                 if "AutoField" in str(field_type) or "Foreign" in str(field_type):
                     continue
@@ -83,3 +76,4 @@ class Command(BaseCommand):
                 self.stdout.write(model_comment_sql)
                 cursor.execute(model_comment_sql)
                 connection.commit()
+        connection.close()
