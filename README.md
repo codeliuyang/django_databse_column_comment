@@ -1,9 +1,13 @@
-# django_mysql_comment
+# django_database_colum_comment
 
 auto add comment for columns of MySQL or PostgreSQL
 
-
 the property ```verbose_name``` of the django model will be used as ```comment``` for columns
+
+## Database Supported
+
+- MySQL
+- PostgreSQL
 
 ## How to use
 
