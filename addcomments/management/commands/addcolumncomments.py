@@ -1,12 +1,8 @@
 """ ADD COMMENT TO TABLE COLUMNS
-only support MySQL for now
 
-command 'python manage.py addcolumncomments'
+only support MySQL and PostgreSQL for now
 
-ALTER TABLE supplier_seller COMMENT '联营商';
-
-ALTER TABLE children
-MODIFY COLUMN school varchar(100) DEFAULT NULL COMMENT '学校'
+commands 'python manage.py addcolumncomments'
 
 """
 from django.core.management.base import BaseCommand
@@ -26,14 +22,37 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # 1. 第一步连接数据库
+        # 1. connect to database
+        connection = self.get_db_connection(options)
+        cursor = connection.cursor()
+        # 2. find all the models defined by ourselves
+        models = apps.get_models()
+        custom_models = [model for model in models if 'django.contrib' not in str(model)]
+        # 3. know the database type
+        connection_type_info = str(connection)
+        processed = False
+        if "mysql" in connection_type_info:
+            self.mysql_add_comment(cursor, connection, custom_models)
+            processed = True
+        if "postgresql" in connection_type_info:
+            self.postgresql_add_comment(cursor, connection, custom_models)
+            processed = True
+        if not processed:
+            self.stdout.write("no related type for", connection_type_info)
+
+    def get_db_connection(self, options):
         database = options['database']
         connection = connections[database]
         connection.prepare_database()
-        cursor = connection.cursor()
-        # 2. 找出所有自己定义的models
-        models = apps.get_models()
-        custom_models = [model for model in models if 'django.contrib' not in str(model)]
+        return connection
+
+    def mysql_add_comment(self, cursor, connection, custom_models):
+        """
+        if MySQL
+
+        the sql will be like:
+        ALTER TABLE children MODIFY COLUMN school varchar(100) DEFAULT NULL COMMENT '学校'
+        """
         for modelobj in custom_models:
             # 2.1 获取table_name
             table_name = modelobj._meta.db_table
@@ -61,7 +80,7 @@ class Command(BaseCommand):
                 db_column = field.db_column
                 if not db_column:
                     db_column = field.name
-                # 3.1 set verbose_name as comment
+                # 3.1 get verbose_name as comment
                 verbose_name = field.verbose_name
                 if not verbose_name or verbose_name == db_column.replace("_", " "):
                     continue
@@ -75,5 +94,37 @@ class Command(BaseCommand):
                 model_comment_sql += original_ddl + " COMMENT '" + str(verbose_name) + "'"
                 self.stdout.write(model_comment_sql)
                 cursor.execute(model_comment_sql)
+                connection.commit()
+        connection.close()
+
+    def postgresql_add_comment(self, cursor, connection, custom_models):
+        """
+        if PostgreSQL
+
+        the sql will be like:
+        COMMENT ON COLUMN test_student.age IS '年龄'；
+        """
+        for modelobj in custom_models:
+            # 1. get table_name
+            table_name = modelobj._meta.db_table
+            fields = modelobj._meta.fields
+            for field in fields:
+                db_column = field.db_column
+                if not db_column:
+                    db_column = field.name
+                # 2. ignore Primary Key or Foreign Key
+                field_type = str(type(field))
+                if "AutoField" in str(field_type) or "Foreign" in str(field_type):
+                    continue
+                # 3. get verbose_name as comment
+                verbose_name = field.verbose_name
+                if not verbose_name or verbose_name == db_column.replace("_", " "):
+                    continue
+                # 4. start to execute sql for comment
+                comment_sql = "COMMENT ON COLUMN " + table_name + "." + db_column + " IS '" + verbose_name + "'"
+                cursor.execute(comment_sql)
+                model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
+                model_comment_sql += "\t" + comment_sql
+                self.stdout.write(model_comment_sql)
                 connection.commit()
         connection.close()
