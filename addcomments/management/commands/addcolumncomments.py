@@ -54,6 +54,8 @@ class Command(BaseCommand):
         ALTER TABLE children MODIFY COLUMN school varchar(100) DEFAULT NULL COMMENT '学校'
         """
         for modelobj in custom_models:
+            if not modelobj._meta.managed:
+                continue
             # 2.1 获取table_name
             table_name = modelobj._meta.db_table
             # 2.2 从数据库中获取 ddl of create table ...
@@ -105,6 +107,8 @@ class Command(BaseCommand):
         COMMENT ON COLUMN test_student.age IS '年龄'；
         """
         for modelobj in custom_models:
+            if not modelobj._meta.managed:
+                continue
             # 1. get table_name
             table_name = modelobj._meta.db_table
             fields = modelobj._meta.fields
