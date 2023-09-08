@@ -38,7 +38,7 @@ class Command(BaseCommand):
             self.postgresql_add_comment(cursor, connection, custom_models)
             processed = True
         if not processed:
-            self.stdout.write("no related type for", connection_type_info)
+            self.stdout.write(f"no related type for {connection_type_info}")
 
     def get_db_connection(self, options):
         database = options['database']
@@ -93,7 +93,10 @@ class Command(BaseCommand):
                 original_ddl = ddl_column_dict.get(db_column)
                 model_comment_sql += original_ddl + " COMMENT '" + str(verbose_name) + "'"
                 self.stdout.write(model_comment_sql)
-                cursor.execute(model_comment_sql)
+                try:
+                    cursor.execute(model_comment_sql)
+                except Exception as e:
+                    self.stdout.write(str(e))
                 connection.commit()
         connection.close()
 
@@ -122,7 +125,10 @@ class Command(BaseCommand):
                     continue
                 # 4. start to execute sql for comment
                 comment_sql = "COMMENT ON COLUMN " + table_name + "." + db_column + " IS '" + verbose_name + "'"
-                cursor.execute(comment_sql)
+                try:
+                    cursor.execute(comment_sql)
+                except Exception as e:
+                    self.stdout.write(str(e))
                 model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
                 model_comment_sql += "\t" + comment_sql
                 self.stdout.write(model_comment_sql)
