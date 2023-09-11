@@ -46,6 +46,14 @@ class Command(BaseCommand):
         connection.prepare_database()
         return connection
 
+    def exec(self, cursor, connection, sql: str):
+        try:
+            cursor.execute(sql)
+            connection.commit()
+            self.stdout.write(sql)
+        except Exception as e:
+            self.stderr.write(f"sql exec error! sql:{sql}, err: {e}")
+
     def mysql_add_comment(self, cursor, connection, custom_models):
         """
         if MySQL
@@ -54,8 +62,13 @@ class Command(BaseCommand):
         ALTER TABLE children MODIFY COLUMN school varchar(100) DEFAULT NULL COMMENT '学校'
         """
         for modelobj in custom_models:
+            if not modelobj._meta.managed:
+                continue
             # 2.1 获取table_name
             table_name = modelobj._meta.db_table
+            table_comment = modelobj._meta.verbose_name
+            sql = f"ALTER TABLE {table_name} COMMENT '{table_comment}'"
+            self.exec(cursor, connection, sql)
             # 2.2 从数据库中获取 ddl of create table ...
             ddl_sql = "show create table " + table_name
             cursor.execute(ddl_sql)
@@ -77,27 +90,19 @@ class Command(BaseCommand):
             # 3. 遍历model的字段
             fields = modelobj._meta.fields
             for field in fields:
-                db_column = field.db_column
-                if not db_column:
-                    db_column = field.name
+                field_type = str(type(field))
+                if "AutoField" in field_type or "Foreign" in field_type:
+                    continue
                 # 3.1 get verbose_name as comment
+                db_column = field.db_column or field.name
                 verbose_name = field.verbose_name
                 if not verbose_name or verbose_name == db_column.replace("_", " "):
                     continue
-                model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
-                model_comment_sql += "\t" + "ALTER TABLE " + table_name + "\n"
-                model_comment_sql += "\t" + "MODIFY COLUMN "
-                field_type = str(type(field))
-                if "AutoField" in str(field_type) or "Foreign" in str(field_type):
-                    continue
                 original_ddl = ddl_column_dict.get(db_column)
-                model_comment_sql += original_ddl + " COMMENT '" + str(verbose_name) + "'"
-                self.stdout.write(model_comment_sql)
-                try:
-                    cursor.execute(model_comment_sql)
-                except Exception as e:
-                    self.stdout.write(str(e))
-                connection.commit()
+                if not original_ddl:
+                    continue
+                model_comment_sql = f"-- FOR {table_name}.{db_column} \n\tALTER TABLE {table_name} MODIFY COLUMN {original_ddl} COMMENT '{verbose_name}'"
+                self.exec(cursor, connection, model_comment_sql)
         connection.close()
 
     def postgresql_add_comment(self, cursor, connection, custom_models):
@@ -105,32 +110,30 @@ class Command(BaseCommand):
         if PostgreSQL
 
         the sql will be like:
+        COMMENT ON COLUMN test_student IS '测试表'；
         COMMENT ON COLUMN test_student.age IS '年龄'；
         """
         for modelobj in custom_models:
+            if not modelobj._meta.managed:
+                continue
             # 1. get table_name
             table_name = modelobj._meta.db_table
             fields = modelobj._meta.fields
+            table_comment = modelobj._meta.verbose_name
+            sql = f"""COMMENT ON TABLE "{table_name}" IS '{table_comment}'"""
+            self.exec(cursor, connection, sql)
             for field in fields:
-                db_column = field.db_column
-                if not db_column:
-                    db_column = field.name
                 # 2. ignore Primary Key or Foreign Key
                 field_type = str(type(field))
-                if "AutoField" in str(field_type) or "Foreign" in str(field_type):
+                if "AutoField" in field_type or "Foreign" in field_type:
                     continue
                 # 3. get verbose_name as comment
-                verbose_name = field.verbose_name
-                if not verbose_name or verbose_name == db_column.replace("_", " "):
+                db_column = field.db_column or field.name
+                comment = field.verbose_name
+                if not comment or comment == db_column.replace("_", " "):
                     continue
                 # 4. start to execute sql for comment
-                comment_sql = "COMMENT ON COLUMN " + table_name + "." + db_column + " IS '" + verbose_name + "'"
-                try:
-                    cursor.execute(comment_sql)
-                except Exception as e:
-                    self.stdout.write(str(e))
-                model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
-                model_comment_sql += "\t" + comment_sql
-                self.stdout.write(model_comment_sql)
-                connection.commit()
+                sql = f"""COMMENT ON COLUMN "{table_name}"."{db_column}" IS '{comment}'"""
+                self.exec(cursor, connection, sql)
+                
         connection.close()
