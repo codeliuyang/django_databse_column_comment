@@ -38,13 +38,32 @@ class Command(BaseCommand):
             self.postgresql_add_comment(cursor, connection, custom_models)
             processed = True
         if not processed:
-            self.stdout.write("no related type for", connection_type_info)
+            self.stdout.write(f"no related type for {connection_type_info}, now only support mysql and postgresql")
 
     def get_db_connection(self, options):
         database = options['database']
         connection = connections[database]
         connection.prepare_database()
         return connection
+
+    def is_field_type_to_be_processed(self, field):
+        """
+        the filed_type may be: Char, Integer, AutoField or Foreign,
+        and the AutoField, Foreign will not be processed
+        """
+        field_type = str(type(field))
+        if "AutoField" in str(field_type) or "Foreign" in str(field_type):
+            return False
+        return True
+
+    def get_comment_text(self, field, db_column):
+        """
+        first verbose_name as comment, then help text
+        """
+        comment_text = field.verbose_name
+        if not comment_text or comment_text == db_column.replace("_", " "):
+            comment_text = field.help_text
+        return comment_text
 
     def mysql_add_comment(self, cursor, connection, custom_models):
         """
@@ -83,17 +102,16 @@ class Command(BaseCommand):
                 if not db_column:
                     db_column = field.name
                 # 3.1 get verbose_name as comment
-                verbose_name = field.verbose_name
-                if not verbose_name or verbose_name == db_column.replace("_", " "):
+                comment_text = self.get_comment_text(field, db_column)
+                if not comment_text:
                     continue
                 model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
                 model_comment_sql += "\t" + "ALTER TABLE " + table_name + "\n"
                 model_comment_sql += "\t" + "MODIFY COLUMN "
-                field_type = str(type(field))
-                if "AutoField" in str(field_type) or "Foreign" in str(field_type):
+                if not self.is_field_type_to_be_processed(field):
                     continue
                 original_ddl = ddl_column_dict.get(db_column)
-                model_comment_sql += original_ddl + " COMMENT '" + str(verbose_name) + "'"
+                model_comment_sql += original_ddl + " COMMENT '" + str(comment_text) + "'"
                 self.stdout.write(model_comment_sql)
                 cursor.execute(model_comment_sql)
                 connection.commit()
@@ -117,15 +135,14 @@ class Command(BaseCommand):
                 if not db_column:
                     db_column = field.name
                 # 2. ignore Primary Key or Foreign Key
-                field_type = str(type(field))
-                if "AutoField" in str(field_type) or "Foreign" in str(field_type):
+                if not self.is_field_type_to_be_processed(field):
                     continue
                 # 3. get verbose_name as comment
-                verbose_name = field.verbose_name
-                if not verbose_name or verbose_name == db_column.replace("_", " "):
+                comment_text = self.get_comment_text(field, db_column)
+                if not comment_text:
                     continue
                 # 4. start to execute sql for comment
-                comment_sql = "COMMENT ON COLUMN " + table_name + "." + db_column + " IS '" + verbose_name + "'"
+                comment_sql = "COMMENT ON COLUMN " + table_name + "." + db_column + " IS '" + comment_text + "'"
                 cursor.execute(comment_sql)
                 model_comment_sql = "-- FOR " + table_name + "." + db_column + " \n"
                 model_comment_sql += "\t" + comment_sql

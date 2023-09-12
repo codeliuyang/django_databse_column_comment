@@ -2,7 +2,7 @@
 
 auto add comment for columns of MySQL or PostgreSQL
 
-the property ```verbose_name``` of the django model will be used as ```comment``` for columns
+the property ```verbose_name``` or ```help_text``` of the django model will be used as ```comment``` for columns
 
 ## Database Supported
 
@@ -11,10 +11,10 @@ the property ```verbose_name``` of the django model will be used as ```comment``
 
 ## How to use
 
-the model 
+the model, you need to notice that the order verbose_name is at the first, then help_text
 ```
 name = models.CharField(max_length=200, verbose_name="名称", blank=True, default=None)
-age = models.SmallIntegerField(verbose_name="年龄", blank=True, default=None)
+age = models.SmallIntegerField(help_text="年龄", blank=True, default=None)
 ```
 
 then, install the package

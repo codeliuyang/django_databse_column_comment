@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="addcomments",
-    version="0.0.3",
+    version="1.0.0",
     author="yangliu",
     author_email="codeliuyang@163.com",
     description="add database table column comments",
